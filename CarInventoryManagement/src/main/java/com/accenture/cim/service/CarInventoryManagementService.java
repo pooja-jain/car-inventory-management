@@ -82,12 +82,12 @@ public class CarInventoryManagementService {
 					.filter(c -> carInventoryManagementService.validateOrderAgainstAccessoryInventory(c, accessoryInventoryMap)
 							&& carInventoryManagementService.validateOrderAgainstCarInventory(c, carInventoryMap)
 							&& carInventoryManagementService.validateMotorInsuranceProviderInventory(c, motorInsuranceProviderInventoryMap)
-							&& carInventoryManagementService.validateRegionalTaxRateConfiguration(c, regionalTaxRateConfigurationMap))
+							&& carInventoryManagementService.validateRegionalTaxRateConfiguration(c, regionalTaxRateConfigurationMap)
+							&& carInventoryManagementService.decrementQuantityAvailable(c, accessoryInventoryMap, carInventoryMap))
 					.map(c -> {
 						c.setCarAvailable(true);
 						return c;
 					}).collect(Collectors.toList());
-			// TODO : decrement car and accessory inventory quantity
 			List<CarOrder> invalidValidCarOrderList = carOrderList.stream().filter((CarOrder c) -> {
 				return !validCarOrderList.contains(c);
 			}).collect(Collectors.toList());
@@ -254,37 +254,16 @@ public class CarInventoryManagementService {
 		return null;
 	}
 
-	public boolean checkOrderAndCarInventory(List<CarOrder> orderl, List<CarInventory> carInventoryl,
-			List<AccessoryInventory> accessoryInventoryList) {
-		for (CarOrder order : orderl) {
-			CarInventory car = new CarInventory();
-			car.setColor(order.getColor());
-			car.setModel(order.getModel());
-			car.setVariant(order.getVariant());
-			car.setVendor(order.getVendor());
-			for (CarInventory carInventory : carInventoryl) {
-				int carQuantity = carInventory.getQuantityAvailable();
-				if (car.equals(carInventory) && carQuantity > 0) {
-					AccessoryInventory accessor = new AccessoryInventory();
-					accessor.setModel(order.getModel());
-					accessor.setVendor(order.getVendor());
-					for (String accer : order.getAccesoryList()) {
-						accessor.setAccessories(accer.replaceAll("\\s", ""));
-						for (AccessoryInventory accessoryInventory : accessoryInventoryList) {
-							int accessoryQuantity = accessoryInventory.getQuantityAvailable();
-							if (accessor.equals(accessoryInventory) && accessoryQuantity > 0) {
-								order.setCarAvailable(true);
-								carInventory.setQuantityAvailable(carQuantity - 1);
-								accessoryInventory.setQuantityAvailable(accessoryQuantity);
-								break;
-							}
-						}
-					}
-
-				}
-			}
+	public boolean decrementQuantityAvailable(CarOrder carOrder, Map<String, AccessoryInventory> accessoryInventoryMap,
+			Map<String, CarInventory> carInventoryMap) {
+		carInventoryMap.get(createCarInventoryKey(carOrder)).decrementQuantityAvailable();
+		List<String> keys = createAccessoryInventoryKey(carOrder);
+		if (keys != null) {
+			keys.stream().forEach((key -> {
+				accessoryInventoryMap.get(key).decrementQuantityAvailable();
+			}));
 		}
-
-		return false;
+		return true;
 	}
+
 }

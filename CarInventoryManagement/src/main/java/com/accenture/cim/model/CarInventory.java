@@ -64,6 +64,13 @@ public class CarInventory extends SuperInventoryModel {
 		this.quantityAvailable = quantityAvailable;
 	}
 
+	public int decrementQuantityAvailable() {
+		if (quantityAvailable > 0) {
+			return quantityAvailable - 1;
+		}
+		return quantityAvailable;
+	}
+
 	@Override
 	public String toString() {
 		return "CarInventory [vendor=" + vendor + ", model=" + model + ", variant=" + variant + ", color=" + color + ", basePrice="

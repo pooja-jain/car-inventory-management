@@ -54,6 +54,13 @@ public class AccessoryInventory extends SuperInventoryModel {
 		this.quantityAvailable = quantityAvailable;
 	}
 
+	public int decrementQuantityAvailable() {
+		if (quantityAvailable > 0) {
+			return quantityAvailable - 1;
+		}
+		return quantityAvailable;
+	}
+
 	@Override
 	public String toString() {
 		return "AccessoryInventory [vendor=" + vendor + ", model=" + model + ", accessories=" + accessories + ", price=" + price
