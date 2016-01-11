@@ -76,6 +76,10 @@ public class CarInventory extends SuperInventoryModel {
 				+ String.valueOf(quantityAvailable);
 	}
 
+	public String getKey() {
+		return vendor + "-" + model + "-" + variant + "-" + color;
+	}
+
 	@Override
 	public int hashCode() {
 		final int prime = 31;

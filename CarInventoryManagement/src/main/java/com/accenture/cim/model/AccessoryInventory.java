@@ -65,6 +65,10 @@ public class AccessoryInventory extends SuperInventoryModel {
 		return vendor + "," + model + "," + accessories + "," + price + "," + quantityAvailable;
 	}
 
+	public String getKey() {
+		return vendor + "-" + model + "-" + accessories;
+	}
+
 	@Override
 	public int hashCode() {
 		final int prime = 31;

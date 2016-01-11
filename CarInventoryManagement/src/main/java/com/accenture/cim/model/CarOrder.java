@@ -28,6 +28,17 @@ public class CarOrder {
 	// used for internal processing
 	private boolean carAvailable;
 
+	// used for internal processing
+	private String errorMsg;
+
+	public String getErrorMsg() {
+		return errorMsg;
+	}
+
+	public void setErrorMsg(String errorMsg) {
+		this.errorMsg = errorMsg;
+	}
+
 	public List<String> getAccesoryList() {
 		return accesoryList;
 	}
@@ -120,7 +131,8 @@ public class CarOrder {
 	public String toString() {
 		return "CarOrder [customerName=" + customerName + ", region=" + region + ", vendor=" + vendor + ", model=" + model + ", variant="
 				+ variant + ", color=" + color + ", accessories=" + accessories + ", motorInsurance=" + motorInsurance
-				+ ", personalProtectPlan=" + personalProtectPlan + "]";
+				+ ", personalProtectPlan=" + personalProtectPlan + ", accesoryList=" + accesoryList + ", carAvailable=" + carAvailable
+				+ ", errorMsg=" + errorMsg + "]";
 	}
 
 }
