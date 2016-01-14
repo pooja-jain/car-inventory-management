@@ -4,7 +4,7 @@ public class MotorInsuranceProviderInventory {
 
 	private String motorInsuranceProvider;
 
-	private String personalProtectPlanOffered;
+	private boolean personalProtectPlanOffered;
 
 	private String firstYearPremium;
 
@@ -16,11 +16,11 @@ public class MotorInsuranceProviderInventory {
 		this.motorInsuranceProvider = motorInsuranceProvider;
 	}
 
-	public String getPersonalProtectPlanOffered() {
+	public boolean getPersonalProtectPlanOffered() {
 		return personalProtectPlanOffered;
 	}
 
-	public void setPersonalProtectPlanOffered(String personalProtectPlanOffered) {
+	public void setPersonalProtectPlanOffered(boolean personalProtectPlanOffered) {
 		this.personalProtectPlanOffered = personalProtectPlanOffered;
 	}
 

@@ -20,7 +20,7 @@ public class CarOrder {
 
 	private String motorInsurance;
 
-	private String personalProtectPlan;
+	private boolean personalProtectPlan;
 
 	// used for internal processing
 	private List<String> accesoryList;
@@ -30,6 +30,50 @@ public class CarOrder {
 
 	// used for internal processing
 	private String errorMsg;
+
+	// used for internal processing
+	private double taxExpense;
+
+	// used for internal processing
+	private float totalPrice;
+
+	// used for internal processing
+	private float premiumAmt;
+
+	// used for internal processing
+	private float totalAccessoriesPrice;
+
+	public float getTotalAccessoriesPrice() {
+		return totalAccessoriesPrice;
+	}
+
+	public void setTotalAccessoriesPrice(float totalAccessoriesPrice) {
+		this.totalAccessoriesPrice = totalAccessoriesPrice;
+	}
+
+	public float getPremiumAmt() {
+		return premiumAmt;
+	}
+
+	public void setPremiumAmt(float premiumAmt) {
+		this.premiumAmt = premiumAmt;
+	}
+
+	public double getTaxExpense() {
+		return taxExpense;
+	}
+
+	public void setTaxExpense(double taxExpense) {
+		this.taxExpense = taxExpense;
+	}
+
+	public float getTotalPrice() {
+		return totalPrice;
+	}
+
+	public void setTotalPrice(float totalPrice) {
+		this.totalPrice = totalPrice;
+	}
 
 	public String getErrorMsg() {
 		return errorMsg;
@@ -119,11 +163,11 @@ public class CarOrder {
 		this.motorInsurance = motorInsurance;
 	}
 
-	public String getPersonalProtectPlan() {
+	public boolean getPersonalProtectPlan() {
 		return personalProtectPlan;
 	}
 
-	public void setPersonalProtectPlan(String personalProtectPlan) {
+	public void setPersonalProtectPlan(boolean personalProtectPlan) {
 		this.personalProtectPlan = personalProtectPlan;
 	}
 
@@ -131,8 +175,9 @@ public class CarOrder {
 	public String toString() {
 		return "CarOrder [customerName=" + customerName + ", region=" + region + ", vendor=" + vendor + ", model=" + model + ", variant="
 				+ variant + ", color=" + color + ", accessories=" + accessories + ", motorInsurance=" + motorInsurance
-				+ ", personalProtectPlan=" + personalProtectPlan + ", accesoryList=" + accesoryList + ", carAvailable=" + carAvailable
-				+ ", errorMsg=" + errorMsg + "]";
+				+ ", personalProtectPlan=" + personalProtectPlan + ", carAvailable=" + carAvailable + ", errorMsg=" + errorMsg
+				+ ", taxExpense=" + taxExpense + ", totalPrice=" + totalPrice + ", premiumAmt=" + premiumAmt + ", totalAccessoriesPrice="
+				+ totalAccessoriesPrice + "]";
 	}
 
 }

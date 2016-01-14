@@ -1,6 +1,6 @@
 package com.accenture.cim.model;
 
-public class CarInventory extends SuperInventoryModel {
+public class CarInventory extends SuperWriterModel {
 
 	public final static String FILE_HEADER = "vendor,model,variant,color,basePrice,quantityAvailable";
 
@@ -64,11 +64,10 @@ public class CarInventory extends SuperInventoryModel {
 		this.quantityAvailable = quantityAvailable;
 	}
 
-	public int decrementQuantityAvailable() {
+	public void decrementQuantityAvailable() {
 		if (quantityAvailable > 0) {
-			return quantityAvailable - 1;
+			setQuantityAvailable(quantityAvailable - 1);
 		}
-		return quantityAvailable;
 	}
 
 	@Override

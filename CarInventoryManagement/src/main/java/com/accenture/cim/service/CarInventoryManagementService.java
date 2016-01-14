@@ -1,7 +1,9 @@
 package com.accenture.cim.service;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -12,7 +14,9 @@ import org.apache.commons.lang3.StringUtils;
 import com.accenture.cim.model.AccessoryInventory;
 import com.accenture.cim.model.CarInventory;
 import com.accenture.cim.model.CarOrder;
+import com.accenture.cim.model.CarOrderError;
 import com.accenture.cim.model.MotorInsuranceProviderInventory;
+import com.accenture.cim.model.RegionalEstimatedSales;
 import com.accenture.cim.model.RegionalTaxRateConfiguration;
 import com.accenture.cim.utility.CSVFileOperations;
 import com.accenture.cim.utility.PropertyLoader;
@@ -41,64 +45,52 @@ public class CarInventoryManagementService {
 
 			List<CarOrder> carOrderList = carInventoryManagementService.getCarOrders(properties.getProperty("file.location.carOrders"),
 					cSVFileOperations);
-			List<CarInventory> carInventoryList = carInventoryManagementService.getCarInventory(
+			Map<String, CarInventory> carInventoryMap = carInventoryManagementService.getCarInventory(
 					properties.getProperty("file.location.carInventory"), cSVFileOperations);
-			List<AccessoryInventory> accessoryInventoryList = carInventoryManagementService.getAccessoryInventory(
+			Map<String, AccessoryInventory> accessoryInventoryMap = carInventoryManagementService.getAccessoryInventory(
 					properties.getProperty("file.location.accessoryInventory"), cSVFileOperations);
-			List<MotorInsuranceProviderInventory> motorInsuranceProviderInventoryList = carInventoryManagementService
+			Map<String, MotorInsuranceProviderInventory> motorInsuranceProviderInventoryMap = carInventoryManagementService
 					.getMotorInsuranceProviderInventory(properties.getProperty("file.location.motorInsuranceProviderInventory"),
 							cSVFileOperations);
-			List<RegionalTaxRateConfiguration> regionalTaxRateConfigurationList = carInventoryManagementService
-					.getRegionalTaxRateConfiguration(properties.getProperty("file.location.regionalTaxRateConfiguration"),
-							cSVFileOperations);
+			Map<String, Float> regionalTaxRateConfigurationMap = carInventoryManagementService.getRegionalTaxRateConfiguration(
+					properties.getProperty("file.location.regionalTaxRateConfiguration"), cSVFileOperations);
 
-			System.out.println(carOrderList);
-			System.out.println(carInventoryList);
-			System.out.println(accessoryInventoryList);
+			// validate Car orders against various inventories
+			List<CarOrder> validCarOrderList = carInventoryManagementService.getValidCarOrders(carOrderList, carInventoryMap,
+					accessoryInventoryMap, motorInsuranceProviderInventoryMap, regionalTaxRateConfigurationMap);
 
-			Map<String, CarInventory> carInventoryMap = carInventoryList.stream().collect(
-					Collectors.toConcurrentMap(CarInventory::getKey, (CarInventory c) -> {
-						return c;
-					}));
-
-			Map<String, AccessoryInventory> accessoryInventoryMap = accessoryInventoryList.stream().collect(
-					Collectors.toConcurrentMap(AccessoryInventory::getKey, (AccessoryInventory a) -> {
-						return a;
-					}));
-
-			Map<String, MotorInsuranceProviderInventory> motorInsuranceProviderInventoryMap = motorInsuranceProviderInventoryList.stream()
-					.collect(
-							Collectors.toConcurrentMap(MotorInsuranceProviderInventory::getMotorInsuranceProvider, (
-									MotorInsuranceProviderInventory a) -> {
-								return a;
-							}));
-
-			Map<String, Integer> regionalTaxRateConfigurationMap = regionalTaxRateConfigurationList.stream().collect(
-					Collectors.toConcurrentMap(RegionalTaxRateConfiguration::getState, RegionalTaxRateConfiguration::getTaxRate));
-			// System.out.println(carInventoryMap);
-			// System.out.println(accessoryInventoryMap);
-			List<CarOrder> validCarOrderList = carOrderList
-					.stream()
-					.filter(c -> carInventoryManagementService.validateOrderAgainstAccessoryInventory(c, accessoryInventoryMap)
-							&& carInventoryManagementService.validateOrderAgainstCarInventory(c, carInventoryMap)
-							&& carInventoryManagementService.validateMotorInsuranceProviderInventory(c, motorInsuranceProviderInventoryMap)
-							&& carInventoryManagementService.validateRegionalTaxRateConfiguration(c, regionalTaxRateConfigurationMap)
-							&& carInventoryManagementService.decrementQuantityAvailable(c, accessoryInventoryMap, carInventoryMap))
-					.map(c -> {
-						c.setCarAvailable(true);
-						return c;
-					}).collect(Collectors.toList());
-			List<CarOrder> invalidValidCarOrderList = carOrderList.stream().filter((CarOrder c) -> {
+			List<CarOrder> invalidCarOrderList = carOrderList.stream().filter((CarOrder c) -> {
 				return !validCarOrderList.contains(c);
 			}).collect(Collectors.toList());
+
+			// calculate Tax Expense, premium for each car order
+			carInventoryManagementService.calculateCostAndTaxExpense(validCarOrderList, carInventoryMap, accessoryInventoryMap,
+					regionalTaxRateConfigurationMap, motorInsuranceProviderInventoryMap);
+
+			// RegionalEstimatedSalesRepor population
+			List<RegionalEstimatedSales> regionalEstimatedSalesList = carInventoryManagementService.generateRegionalEstimatedSalesReport(
+					validCarOrderList, carInventoryMap, regionalTaxRateConfigurationMap);
+
+			List<CarInventory> carInventoryList = new ArrayList<CarInventory>();
+			carInventoryList.addAll(carInventoryMap.values());
+			List<AccessoryInventory> accessoryInventoryList = new ArrayList<AccessoryInventory>();
+			accessoryInventoryList.addAll(accessoryInventoryMap.values());
+			// generate CSV reports
+			carInventoryManagementService.createCSVReport(carInventoryList, accessoryInventoryList, invalidCarOrderList,
+					regionalEstimatedSalesList, properties);
+
 			System.out.println("total orders: " + carOrderList.size());
 			System.out.println("valid orders: " + validCarOrderList.size());
-			System.out.println(validCarOrderList);
-			System.out.println("invalid orders: " + invalidValidCarOrderList.size());
-			// System.out.println(invalidValidCarOrderList);
-			invalidValidCarOrderList.stream().forEach(c -> System.out.println(c));
-			// cSVFileOperations.writeCSV(properties.getProperty("file.location.carInventory"),
-			// CarInventory.FILE_HEADER, carInventoryList);
+			validCarOrderList.stream().forEach(
+					c -> {
+						System.out.println("customerName=" + c.getCustomerName() + ", region=" + c.getRegion() + ", vendor="
+								+ c.getVendor() + ", model=" + c.getModel() + ", variant=" + c.getVariant() + ", totalPrice="
+								+ c.getTotalPrice());
+					});
+			System.out.println("invalid orders: " + invalidCarOrderList.size());
+			invalidCarOrderList.stream().forEach(c -> System.out.println(c));
+			System.out.println("**************************************");
+			regionalEstimatedSalesList.stream().forEach(c -> System.out.println(c));
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -106,7 +98,115 @@ public class CarInventoryManagementService {
 
 	}
 
-	public List<CarOrder> getCarOrders(String fileName, CSVFileOperations cSVFileOperations) throws Exception {
+	private List<CarOrder> getValidCarOrders(List<CarOrder> carOrderList, Map<String, CarInventory> carInventoryMap,
+			Map<String, AccessoryInventory> accessoryInventoryMap,
+			Map<String, MotorInsuranceProviderInventory> motorInsuranceProviderInventoryMap,
+			Map<String, Float> regionalTaxRateConfigurationMap) {
+
+		return carOrderList
+				.stream()
+				.filter(c -> validateCarOrder(c, carInventoryMap, accessoryInventoryMap, motorInsuranceProviderInventoryMap,
+						regionalTaxRateConfigurationMap) && decrementQuantityAvailable(c, accessoryInventoryMap, carInventoryMap))
+				.map(c -> {
+					c.setCarAvailable(true);
+					return c;
+				}).collect(Collectors.toList());
+
+	}
+
+	private void calculateCostAndTaxExpense(List<CarOrder> validCarOrderList, Map<String, CarInventory> carInventoryMap,
+			Map<String, AccessoryInventory> accessoryInventoryMap, Map<String, Float> regionalTaxRateConfigurationMap,
+			Map<String, MotorInsuranceProviderInventory> motorInsuranceProviderInventoryMap) {
+
+		validCarOrderList.stream().forEach(c -> {
+			float basePrice = carInventoryMap.get(createCarInventoryKey(c)).getBasePrice();
+			double accessoriesPrice = 0;
+			List<String> keys = createAccessoryInventoryKey(c);
+			if (keys != null) {
+				accessoriesPrice = keys.stream().mapToDouble(key -> {
+					return accessoryInventoryMap.get(key).getPrice();
+				}).sum();
+			}
+			c.setTotalAccessoriesPrice((float) accessoriesPrice);
+			float taxRate = regionalTaxRateConfigurationMap.get(c.getRegion()) / 100;
+			c.setTaxExpense((basePrice + accessoriesPrice) * taxRate);
+			c.setTotalPrice(basePrice + (float) accessoriesPrice + (float) c.getTaxExpense());
+		});
+
+		calculatePremiumAmt(validCarOrderList, motorInsuranceProviderInventoryMap);
+
+	}
+
+	private List<RegionalEstimatedSales> generateRegionalEstimatedSalesReport(List<CarOrder> validCarOrderList,
+			Map<String, CarInventory> carInventoryMap, Map<String, Float> regionalTaxRateConfigurationMap) {
+
+		Map<String, List<CarOrder>> carOrderByRegionMap = new HashMap<String, List<CarOrder>>();
+		regionalTaxRateConfigurationMap.keySet().stream().forEach(region -> {
+			List<CarOrder> carOdrList = validCarOrderList.stream().filter(c -> {
+				return c.getRegion().equalsIgnoreCase(region);
+			}).collect(Collectors.toList());
+			carOrderByRegionMap.put(region, carOdrList);
+		});
+
+		return carOrderByRegionMap
+				.entrySet()
+				.stream()
+				.map(entry -> {
+					float totalEstimatedSales = (float) entry
+							.getValue()
+							.stream()
+							.mapToDouble(
+									c -> {
+										return carInventoryMap.get(createCarInventoryKey(c)).getBasePrice() + c.getTotalAccessoriesPrice()
+												+ c.getPremiumAmt() + (float) c.getTaxExpense();
+									}).sum();
+
+					float totalTaxExpense = (float) entry.getValue().stream().mapToDouble(c -> {
+						return c.getTaxExpense();
+
+					}).sum();
+					RegionalEstimatedSales regionalEstimatedSales = new RegionalEstimatedSales();
+					regionalEstimatedSales.setState(entry.getKey());
+					regionalEstimatedSales.setTotalEstimatedSales(BigDecimal.valueOf(totalEstimatedSales));
+					regionalEstimatedSales.setEstimatedSalesUnits(entry.getValue().size());
+					regionalEstimatedSales.setEstimatedNetIncome(totalEstimatedSales - totalTaxExpense);
+					return regionalEstimatedSales;
+				}).collect(Collectors.toList());
+
+	}
+
+	private void createCSVReport(List<CarInventory> carInventoryList, List<AccessoryInventory> accessoryInventoryList,
+			List<CarOrder> invalidCarOrderList, List<RegionalEstimatedSales> regionalEstimatedSalesList, Properties properties) {
+		CSVFileOperations cSVFileOperations = new CSVFileOperations();
+		List<CarOrderError> CarOrderErrorList = invalidCarOrderList.stream().map(i -> {
+			CarOrderError c = new CarOrderError();
+			c.setAccessories(i.getAccessories());
+			c.setColor(i.getColor());
+			c.setCustomerName(i.getCustomerName());
+			c.setErrorMsg(i.getErrorMsg());
+			c.setModel(i.getModel());
+			c.setMotorInsurance(i.getMotorInsurance());
+			c.setPersonalProtectPlan(i.getPersonalProtectPlan());
+			c.setRegion(i.getRegion());
+			c.setVariant(i.getVariant());
+			c.setVendor(i.getVendor());
+			return c;
+		}).collect(Collectors.toList());
+		try {
+			cSVFileOperations.writeCSV(properties.getProperty("file.location.carInventory"), CarInventory.FILE_HEADER, carInventoryList);
+			cSVFileOperations.writeCSV(properties.getProperty("file.location.accessoryInventory"), AccessoryInventory.FILE_HEADER,
+					accessoryInventoryList);
+			cSVFileOperations.writeCSV(properties.getProperty("file.location.carStandingOrdersErrors"), CarOrderError.FILE_HEADER,
+					CarOrderErrorList);
+			cSVFileOperations.writeCSV(properties.getProperty("file.location.regionalEstimatedSalesReport"),
+					RegionalEstimatedSales.FILE_HEADER, regionalEstimatedSalesList);
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+
+	private List<CarOrder> getCarOrders(String fileName, CSVFileOperations cSVFileOperations) throws Exception {
 
 		return cSVFileOperations.readCSV(fileName, fileContent -> {
 			return fileContent.stream().map(line -> {
@@ -119,7 +219,9 @@ public class CarInventoryManagementService {
 				car.setColor(line[5]);
 				car.setAccessories(line[6]);
 				car.setMotorInsurance(line[7]);
-				car.setPersonalProtectPlan(line[8]);
+				if (line[8] != null && line[8].equalsIgnoreCase("yes")) {
+					car.setPersonalProtectPlan(true);
+				}
 				if (!StringUtils.isBlank(car.getAccessories())) {
 					// List<String> accessories = Arrays.asList(car.getAccessories().split(":"));
 					// car.setAccesoryList(accessories.stream().map(s -> s.replaceAll("^\\s+",
@@ -132,7 +234,7 @@ public class CarInventoryManagementService {
 		});
 	}
 
-	public List<CarInventory> getCarInventory(String fileName, CSVFileOperations cSVFileOperations) throws Exception {
+	private Map<String, CarInventory> getCarInventory(String fileName, CSVFileOperations cSVFileOperations) throws Exception {
 
 		return cSVFileOperations.readCSV(fileName, fileContent -> {
 			return fileContent.stream().map(line -> {
@@ -145,10 +247,12 @@ public class CarInventoryManagementService {
 				carInventory.setQuantityAvailable(Integer.valueOf(line[5]));
 				return carInventory;
 			}).collect(Collectors.toList());
-		});
+		}).stream().collect(Collectors.toConcurrentMap(CarInventory::getKey, (CarInventory c) -> {
+			return c;
+		}));
 	}
 
-	public List<AccessoryInventory> getAccessoryInventory(String fileName, CSVFileOperations cSVFileOperations) throws Exception {
+	private Map<String, AccessoryInventory> getAccessoryInventory(String fileName, CSVFileOperations cSVFileOperations) throws Exception {
 
 		return cSVFileOperations.readCSV(fileName, fileContent -> {
 			return fileContent.stream().map(line -> {
@@ -160,25 +264,35 @@ public class CarInventoryManagementService {
 				accessoryInventory.setQuantityAvailable(Integer.valueOf(line[4]));
 				return accessoryInventory;
 			}).collect(Collectors.toList());
-		});
+		}).stream().collect(Collectors.toConcurrentMap(AccessoryInventory::getKey, (AccessoryInventory a) -> {
+			return a;
+		}));
 	}
 
-	public List<MotorInsuranceProviderInventory> getMotorInsuranceProviderInventory(String fileName, CSVFileOperations cSVFileOperations)
-			throws Exception {
+	private Map<String, MotorInsuranceProviderInventory> getMotorInsuranceProviderInventory(String fileName,
+			CSVFileOperations cSVFileOperations) throws Exception {
 
-		return cSVFileOperations.readCSV(fileName, fileContent -> {
-			return fileContent.stream().map(line -> {
-				MotorInsuranceProviderInventory motorInsuranceProviderInventory = new MotorInsuranceProviderInventory();
-				motorInsuranceProviderInventory.setFirstYearPremium(line[2]);
-				motorInsuranceProviderInventory.setMotorInsuranceProvider(line[0]);
-				motorInsuranceProviderInventory.setPersonalProtectPlanOffered(line[1]);
-				return motorInsuranceProviderInventory;
-			}).collect(Collectors.toList());
-		});
+		return cSVFileOperations
+				.readCSV(fileName, fileContent -> {
+					return fileContent.stream().map(line -> {
+						MotorInsuranceProviderInventory motorInsuranceProviderInventory = new MotorInsuranceProviderInventory();
+						motorInsuranceProviderInventory.setFirstYearPremium(line[2]);
+						motorInsuranceProviderInventory.setMotorInsuranceProvider(line[0]);
+						if (line[1] != null && line[1].equalsIgnoreCase("yes")) {
+							motorInsuranceProviderInventory.setPersonalProtectPlanOffered(true);
+						}
+						return motorInsuranceProviderInventory;
+					}).collect(Collectors.toList());
+				})
+				.stream()
+				.collect(
+						Collectors.toConcurrentMap(MotorInsuranceProviderInventory::getMotorInsuranceProvider, (
+								MotorInsuranceProviderInventory a) -> {
+							return a;
+						}));
 	}
 
-	public List<RegionalTaxRateConfiguration> getRegionalTaxRateConfiguration(String fileName, CSVFileOperations cSVFileOperations)
-			throws Exception {
+	private Map<String, Float> getRegionalTaxRateConfiguration(String fileName, CSVFileOperations cSVFileOperations) throws Exception {
 
 		return cSVFileOperations.readCSV(fileName, fileContent -> {
 			return fileContent.stream().map(line -> {
@@ -187,7 +301,21 @@ public class CarInventoryManagementService {
 				regionalTaxRateConfiguration.setTaxRate(Integer.valueOf(line[1]));
 				return regionalTaxRateConfiguration;
 			}).collect(Collectors.toList());
-		});
+		}).stream().collect(Collectors.toConcurrentMap(RegionalTaxRateConfiguration::getState, RegionalTaxRateConfiguration::getTaxRate));
+	}
+
+	private boolean validateCarOrder(CarOrder c, Map<String, CarInventory> carInventoryMap,
+			Map<String, AccessoryInventory> accessoryInventoryMap,
+			Map<String, MotorInsuranceProviderInventory> motorInsuranceProviderInventoryMap,
+			Map<String, Float> regionalTaxRateConfigurationMap) {
+		return validateAgainstInventory(c, carInventoryMap, accessoryInventoryMap)
+				&& validateMotorInsuranceProviderInventory(c, motorInsuranceProviderInventoryMap)
+				&& validateRegionalTaxRateConfiguration(c, regionalTaxRateConfigurationMap);
+	}
+
+	private boolean validateAgainstInventory(CarOrder c, Map<String, CarInventory> carInventoryMap,
+			Map<String, AccessoryInventory> accessoryInventoryMap) {
+		return validateOrderAgainstAccessoryInventory(c, accessoryInventoryMap) && validateOrderAgainstCarInventory(c, carInventoryMap);
 	}
 
 	private boolean validateOrderAgainstCarInventory(CarOrder carOrder, Map<String, CarInventory> carInventoryMap) {
@@ -227,7 +355,7 @@ public class CarInventoryManagementService {
 		return false;
 	}
 
-	private boolean validateRegionalTaxRateConfiguration(CarOrder carOrder, Map<String, Integer> regionalTaxRateConfigurationMap) {
+	private boolean validateRegionalTaxRateConfiguration(CarOrder carOrder, Map<String, Float> regionalTaxRateConfigurationMap) {
 		if (regionalTaxRateConfigurationMap.containsKey(carOrder.getRegion())) {
 			return true;
 		}
@@ -254,7 +382,7 @@ public class CarInventoryManagementService {
 		return null;
 	}
 
-	public boolean decrementQuantityAvailable(CarOrder carOrder, Map<String, AccessoryInventory> accessoryInventoryMap,
+	private boolean decrementQuantityAvailable(CarOrder carOrder, Map<String, AccessoryInventory> accessoryInventoryMap,
 			Map<String, CarInventory> carInventoryMap) {
 		carInventoryMap.get(createCarInventoryKey(carOrder)).decrementQuantityAvailable();
 		List<String> keys = createAccessoryInventoryKey(carOrder);
@@ -266,4 +394,17 @@ public class CarInventoryManagementService {
 		return true;
 	}
 
+	private void calculatePremiumAmt(List<CarOrder> carOrderList,
+			Map<String, MotorInsuranceProviderInventory> motorInsuranceProviderInventoryMap) {
+		carOrderList.stream()
+				.forEach(
+						c -> {
+							if (motorInsuranceProviderInventoryMap.get(c.getMotorInsurance()).getPersonalProtectPlanOffered()
+									&& c.getPersonalProtectPlan()) {
+								c.setPremiumAmt(Float.valueOf(motorInsuranceProviderInventoryMap.get(c.getMotorInsurance())
+										.getFirstYearPremium()));
+							}
+						});
+
+	}
 }

@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 
-import com.accenture.cim.model.SuperInventoryModel;
+import com.accenture.cim.model.SuperWriterModel;
 
 public class CSVFileOperations {
 
@@ -19,11 +19,11 @@ public class CSVFileOperations {
 		return null;
 	}
 
-	public void writeCSV(String fileName, String header, List<? extends SuperInventoryModel> dataSet) throws Exception {
+	public void writeCSV(String fileName, String header, List<? extends SuperWriterModel> dataSet) throws Exception {
 		FileWriter writer = new FileWriter(fileName);
 		writer.append(header);
 		writer.append("\n");
-		dataSet.stream().forEach((SuperInventoryModel inventoryElement) -> {
+		dataSet.stream().forEach((SuperWriterModel inventoryElement) -> {
 			try {
 				writer.append(inventoryElement.getCommaSeparatedValue());
 				writer.append("\n");

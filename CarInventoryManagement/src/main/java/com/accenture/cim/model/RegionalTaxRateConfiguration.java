@@ -3,7 +3,7 @@ package com.accenture.cim.model;
 public class RegionalTaxRateConfiguration {
 	private String state;
 
-	private int taxRate;
+	private float taxRate;
 
 	public String getState() {
 		return state;
@@ -13,7 +13,7 @@ public class RegionalTaxRateConfiguration {
 		this.state = state;
 	}
 
-	public int getTaxRate() {
+	public float getTaxRate() {
 		return taxRate;
 	}
 
