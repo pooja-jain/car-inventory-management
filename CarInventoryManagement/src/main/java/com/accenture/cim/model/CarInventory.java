@@ -82,51 +82,12 @@ public class CarInventory extends SuperWriterModel {
 				+ String.valueOf(quantityAvailable);
 	}
 
+	/**
+	 * sample key 'Tata-Nano-Petrol-Gray'
+	 * @return
+	 */
 	public String getKey() {
 		return vendor + "-" + model + "-" + variant + "-" + color;
-	}
-
-	@Override
-	public int hashCode() {
-		final int prime = 31;
-		int result = 1;
-		result = prime * result + ((color == null) ? 0 : color.hashCode());
-		result = prime * result + ((model == null) ? 0 : model.hashCode());
-		result = prime * result + ((variant == null) ? 0 : variant.hashCode());
-		result = prime * result + ((vendor == null) ? 0 : vendor.hashCode());
-		return result;
-	}
-
-	@Override
-	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (getClass() != obj.getClass())
-			return false;
-		CarInventory other = (CarInventory) obj;
-		if (color == null) {
-			if (other.color != null)
-				return false;
-		} else if (!color.equals(other.color))
-			return false;
-		if (model == null) {
-			if (other.model != null)
-				return false;
-		} else if (!model.equals(other.model))
-			return false;
-		if (variant == null) {
-			if (other.variant != null)
-				return false;
-		} else if (!variant.equals(other.variant))
-			return false;
-		if (vendor == null) {
-			if (other.vendor != null)
-				return false;
-		} else if (!vendor.equals(other.vendor))
-			return false;
-		return true;
 	}
 
 }

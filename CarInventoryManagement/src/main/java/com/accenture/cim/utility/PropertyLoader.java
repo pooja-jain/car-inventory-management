@@ -5,9 +5,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
 
+import com.accenture.com.exception.CimRuntimeException;
+
 public class PropertyLoader {
 
-	public Properties loadProperties() throws IOException {
+	public Properties loadProperties() {
 		Properties prop = new Properties();
 		InputStream input = null;
 
@@ -20,8 +22,14 @@ public class PropertyLoader {
 				throw new FileNotFoundException("property file '" + filename + "' not found in the classpath");
 			}
 
+		} catch (IOException e) {
+			throw new CimRuntimeException("Error while loading property file : ");
 		} finally {
-			input.close();
+			try {
+				input.close();
+			} catch (IOException e) {
+				throw new CimRuntimeException("Error while loading property file");
+			}
 		}
 		return prop;
 	}
